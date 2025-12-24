@@ -171,9 +171,10 @@ Analyze this email and provide your assessment in JSON format:`;
     // Parse the JSON response
     // Extract JSON from the response (handle potential markdown code blocks)
     let jsonStr = text;
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1]!.trim();
+    const jsonRegex = /```(?:json)?\s*([\s\S]*?)```/;
+    const jsonMatch = jsonRegex.exec(text);
+    if (jsonMatch?.[1]) {
+      jsonStr = jsonMatch[1].trim();
     }
 
     const analysis = JSON.parse(jsonStr) as {

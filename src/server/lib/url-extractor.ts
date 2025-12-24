@@ -37,7 +37,7 @@ export function extractUrls(text: string): string[] {
  * Extracts domain from a URL
  */
 export function extractDomain(url: string): string | null {
-  const match = url.match(DOMAIN_REGEX);
+  const match = DOMAIN_REGEX.exec(url);
   return match?.[1]?.toLowerCase() ?? null;
 }
 

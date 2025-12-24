@@ -61,7 +61,7 @@ interface BubbleEffectProps {
 export function BubbleEffect({ count = 12, className }: BubbleEffectProps) {
   return (
     <div className={cn("absolute inset-0 overflow-hidden pointer-events-none", className)}>
-      {[...Array(count)].map((_, i) => (
+      {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
           className="absolute bottom-0 rounded-full bg-white/20 animate-bubble"

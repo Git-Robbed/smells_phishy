@@ -32,7 +32,7 @@ export function Footer() {
     <footer className="bg-navy text-white relative overflow-hidden">
       {/* Bioluminescent dots */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+        {Array.from({ length: 20 }, (_, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 rounded-full bg-primary/30 animate-pulse-glow"

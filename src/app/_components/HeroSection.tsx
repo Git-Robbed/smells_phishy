@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Shield } from "lucide-react";
-import { FishIcon, BubbleEffect } from "./FishIcon";
+import { BubbleEffect } from "./FishIcon";
 
 export function HeroSection() {
   const scrollToSection = (id: string) => {
