@@ -18,7 +18,7 @@ Smells Phishy is a web application that uses a hybrid detection engine combining
 - **Frontend**: Next.js 15, React 19, Tailwind CSS 4
 - **Backend**: tRPC for type-safe APIs
 - **AI**: Google Gemini Flash (1,500 free requests/day)
-- **Threat Intel**: Google Safe Browsing, PhishTank, urlscan.io (optional)
+- **Threat Intel**: Google Safe Browsing, urlscan.io (optional)
 - **Rate Limiting**: Upstash Redis (optional) or in-memory
 
 ## Getting Started
@@ -49,9 +49,8 @@ GOOGLE_SAFE_BROWSING_API_KEY=your_key_here
 # Required - AI Analysis
 GEMINI_API_KEY=your_key_here
 
-# Optional - Enhanced threat detection (limited free tier)
+# Optional - Enhanced threat detection (1,000/day free tier)
 URLSCAN_API_KEY=
-PHISHTANK_API_KEY=
 
 # Optional - Persistent rate limiting (free tier: 10k commands/day)
 UPSTASH_REDIS_REST_URL=
@@ -75,7 +74,6 @@ npm run dev
 | **Google Safe Browsing** | 10,000/day | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) | Yes |
 | **Google Gemini** | 1,500/day, 15/min | [AI Studio](https://aistudio.google.com/app/apikey) | Yes |
 | **urlscan.io** | 1,000/day | [urlscan.io Profile](https://urlscan.io/user/profile/) | No |
-| **PhishTank** | Unlimited (slow) | [PhishTank API](https://phishtank.org/api_info.php) | No |
 | **Upstash Redis** | 10,000 commands/day | [Upstash](https://upstash.com) | No |
 
 ### Free Tier Optimizations
@@ -92,8 +90,7 @@ The app is designed to stay within free tiers:
 ### Layer 1: Threat Intelligence
 Extracts URLs from the email and checks them against:
 - Google Safe Browsing API (malware, social engineering, unwanted software)
-- PhishTank (community-verified phishing sites)
-- urlscan.io (historical malicious verdicts) - *only if configured*
+- urlscan.io (historical malicious verdicts) - *optional, if configured*
 
 If any source flags the content as malicious, an immediate "DANGER" verdict is returned.
 
@@ -124,7 +121,6 @@ Add these in the Vercel dashboard:
 | `GOOGLE_SAFE_BROWSING_API_KEY` | Yes |
 | `GEMINI_API_KEY` | Yes |
 | `URLSCAN_API_KEY` | No |
-| `PHISHTANK_API_KEY` | No |
 | `UPSTASH_REDIS_REST_URL` | No |
 | `UPSTASH_REDIS_REST_TOKEN` | No |
 

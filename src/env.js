@@ -13,8 +13,7 @@ export const env = createEnv({
       .default("development"),
     // Threat Intelligence APIs
     GOOGLE_SAFE_BROWSING_API_KEY: z.string().min(1),
-    PHISHTANK_API_KEY: z.string().optional(), // Optional - has unauthenticated access
-    URLSCAN_API_KEY: z.string().optional(), // Optional - limited free tier
+    URLSCAN_API_KEY: z.string().optional(), // Optional - 1,000 searches/day free tier
     // Gemini AI
     GEMINI_API_KEY: z.string().min(1),
     // Rate Limiting (Upstash - optional, falls back to in-memory)
@@ -39,7 +38,6 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     GOOGLE_SAFE_BROWSING_API_KEY: process.env.GOOGLE_SAFE_BROWSING_API_KEY,
-    PHISHTANK_API_KEY: process.env.PHISHTANK_API_KEY,
     URLSCAN_API_KEY: process.env.URLSCAN_API_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
