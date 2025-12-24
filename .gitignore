@@ -8,9 +8,7 @@
 # testing
 /coverage
 
-# database
-/prisma/db.sqlite
-/prisma/db.sqlite-journal
+# database (not used - zero data retention)
 db.sqlite
 
 # next.js
@@ -37,7 +35,7 @@ yarn-error.log*
 .env.local
 .env*.local
 
-# generated prisma client
+# generated files
 /generated
 
 # vercel

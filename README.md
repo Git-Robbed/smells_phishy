@@ -55,9 +55,6 @@ URLSCAN_API_KEY=
 # Optional - Persistent rate limiting (free tier: 10k commands/day)
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
-
-# Optional - Not needed for core functionality
-DATABASE_URL=
 ```
 
 4. Run the development server:
