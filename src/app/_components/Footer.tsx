@@ -3,6 +3,30 @@
 import { Github, Twitter, Mail } from "lucide-react";
 import { FishIcon } from "./FishIcon";
 
+// Pre-computed positions to avoid hydration mismatch from Math.random()
+const dotPositions = [
+  { left: 5, top: 12, delay: 0.1 },
+  { left: 92, top: 45, delay: 1.2 },
+  { left: 23, top: 78, delay: 0.5 },
+  { left: 67, top: 23, delay: 1.8 },
+  { left: 45, top: 89, delay: 0.3 },
+  { left: 78, top: 56, delay: 1.5 },
+  { left: 12, top: 34, delay: 0.8 },
+  { left: 56, top: 67, delay: 1.1 },
+  { left: 34, top: 91, delay: 0.6 },
+  { left: 89, top: 15, delay: 1.9 },
+  { left: 18, top: 52, delay: 0.2 },
+  { left: 71, top: 38, delay: 1.4 },
+  { left: 42, top: 73, delay: 0.9 },
+  { left: 95, top: 82, delay: 0.4 },
+  { left: 8, top: 61, delay: 1.7 },
+  { left: 63, top: 19, delay: 0.7 },
+  { left: 29, top: 44, delay: 1.3 },
+  { left: 84, top: 71, delay: 0.15 },
+  { left: 51, top: 28, delay: 1.6 },
+  { left: 76, top: 95, delay: 1.0 },
+];
+
 const footerLinks = {
   product: [
     { label: "Web App", href: "#demo" },
@@ -32,14 +56,14 @@ export function Footer() {
     <footer className="bg-navy text-white relative overflow-hidden">
       {/* Bioluminescent dots */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 20 }, (_, i) => (
+        {dotPositions.map((pos, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 rounded-full bg-primary/30 animate-pulse-glow"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 2}s`,
+              left: `${pos.left}%`,
+              top: `${pos.top}%`,
+              animationDelay: `${pos.delay}s`,
             }}
           />
         ))}
