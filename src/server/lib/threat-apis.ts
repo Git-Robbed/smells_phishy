@@ -1,11 +1,16 @@
 /**
  * Threat Intelligence API clients
  * Layer 1 of the phishing detection system - checks against known threat databases
+ * 
+ * FREE TIER OPTIMIZED:
+ * - Google Safe Browsing: 10,000/day (generous)
+ * - PhishTank: Unlimited (slow without key)
+ * - urlscan.io: 1,000/day (optional, only if configured)
  */
 
 import { env } from "~/env";
 
-export type ThreatStatus = "SAFE" | "MALICIOUS" | "UNKNOWN" | "ERROR";
+export type ThreatStatus = "SAFE" | "MALICIOUS" | "UNKNOWN" | "ERROR" | "SKIPPED";
 
 export interface ThreatCheckResult {
   provider: string;
@@ -16,6 +21,9 @@ export interface ThreatCheckResult {
 
 // Timeout for API calls (3 seconds as per PRD)
 const API_TIMEOUT = 3000;
+
+// Reduced URL checks to conserve quota (was 5)
+const MAX_URLS_PER_CHECK = 3;
 
 /**
  * Creates a fetch with timeout
@@ -43,7 +51,7 @@ async function fetchWithTimeout(
 
 /**
  * Google Safe Browsing API v4 Lookup
- * Checks URLs against Google's threat database
+ * FREE TIER: 10,000 requests/day - very generous
  */
 export async function checkGoogleSafeBrowsing(
   urls: string[]
@@ -54,6 +62,9 @@ export async function checkGoogleSafeBrowsing(
 
   const apiKey = env.GOOGLE_SAFE_BROWSING_API_KEY;
   const endpoint = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`;
+
+  // Limit URLs to conserve quota
+  const urlsToCheck = urls.slice(0, MAX_URLS_PER_CHECK);
 
   const requestBody = {
     client: {
@@ -69,7 +80,7 @@ export async function checkGoogleSafeBrowsing(
       ],
       platformTypes: ["ANY_PLATFORM"],
       threatEntryTypes: ["URL"],
-      threatEntries: urls.map((url) => ({ url })),
+      threatEntries: urlsToCheck.map((url) => ({ url })),
     },
   };
 
@@ -116,16 +127,15 @@ export async function checkGoogleSafeBrowsing(
 
 /**
  * PhishTank API
- * Checks URLs against community-verified phishing database
+ * FREE TIER: Unlimited but slow without API key
  */
 export async function checkPhishTank(urls: string[]): Promise<ThreatCheckResult> {
   if (urls.length === 0) {
     return { provider: "PhishTank", status: "SAFE" };
   }
 
-  // PhishTank requires checking each URL individually
-  // We'll check the first few URLs to stay within rate limits
-  const urlsToCheck = urls.slice(0, 5);
+  // Limit URLs to conserve time (each is a separate request)
+  const urlsToCheck = urls.slice(0, MAX_URLS_PER_CHECK);
   const matchedUrls: string[] = [];
 
   try {
@@ -177,19 +187,28 @@ export async function checkPhishTank(urls: string[]): Promise<ThreatCheckResult>
 
 /**
  * urlscan.io Search API
- * Checks if domains have historical malicious verdicts
+ * FREE TIER: 1,000 searches/day - LIMITED, only use if configured
  */
 export async function checkUrlscan(domains: string[]): Promise<ThreatCheckResult> {
+  // Skip if no API key configured (optional service)
+  const apiKey = env.URLSCAN_API_KEY;
+  if (!apiKey) {
+    return { 
+      provider: "urlscan.io", 
+      status: "SKIPPED",
+      details: "API key not configured"
+    };
+  }
+
   if (domains.length === 0) {
     return { provider: "urlscan.io", status: "SAFE" };
   }
 
-  const apiKey = env.URLSCAN_API_KEY;
   const matchedDomains: string[] = [];
 
   try {
-    // Check each domain for malicious history
-    for (const domain of domains.slice(0, 5)) {
+    // Only check first 2 domains to conserve quota (was 5)
+    for (const domain of domains.slice(0, 2)) {
       const query = encodeURIComponent(`domain:${domain} AND verdicts.malicious:true`);
       const endpoint = `https://urlscan.io/api/v1/search/?q=${query}&size=1`;
 
@@ -231,8 +250,17 @@ export async function checkUrlscan(domains: string[]): Promise<ThreatCheckResult
 }
 
 /**
- * Run all threat intelligence checks in parallel
- * Returns immediately if any check finds a malicious URL
+ * Helper to check if any result is malicious
+ */
+function hasMaliciousResult(results: PromiseSettledResult<ThreatCheckResult>[]): boolean {
+  return results.some(
+    (r) => r.status === "fulfilled" && r.value.status === "MALICIOUS"
+  );
+}
+
+/**
+ * Run threat intelligence checks with quota optimization
+ * Strategy: Run primary checks first, only use urlscan if needed
  */
 export async function runThreatIntelligenceChecks(
   urls: string[],
@@ -242,24 +270,17 @@ export async function runThreatIntelligenceChecks(
   results: ThreatCheckResult[];
   maliciousReasons: string[];
 }> {
-  // Run all checks in parallel
-  const [googleResult, phishTankResult, urlscanResult] = await Promise.allSettled([
-    checkGoogleSafeBrowsing(urls),
-    checkPhishTank(urls),
-    checkUrlscan(domains),
-  ]);
-
   const results: ThreatCheckResult[] = [];
   const maliciousReasons: string[] = [];
 
-  // Process results
+  // Process a result and add to results array
   const processResult = (result: PromiseSettledResult<ThreatCheckResult>) => {
     if (result.status === "fulfilled") {
       results.push(result.value);
       if (result.value.status === "MALICIOUS") {
-        const urls = result.value.matchedUrls?.join(", ") ?? "unknown";
+        const matchedUrls = result.value.matchedUrls?.join(", ") ?? "unknown";
         maliciousReasons.push(
-          `${result.value.provider}: ${result.value.details ?? "Threat detected"} (${urls})`
+          `${result.value.provider}: ${result.value.details ?? "Threat detected"} (${matchedUrls})`
         );
       }
     } else {
@@ -271,9 +292,29 @@ export async function runThreatIntelligenceChecks(
     }
   };
 
-  processResult(googleResult);
-  processResult(phishTankResult);
-  processResult(urlscanResult);
+  // STEP 1: Run primary checks (Google + PhishTank) in parallel
+  // These have generous free tiers
+  const primaryResults = await Promise.allSettled([
+    checkGoogleSafeBrowsing(urls),
+    checkPhishTank(urls),
+  ]);
+
+  primaryResults.forEach(processResult);
+
+  // STEP 2: Only run urlscan if:
+  // - No threats found yet
+  // - API key is configured
+  // - We have domains to check
+  if (!hasMaliciousResult(primaryResults) && env.URLSCAN_API_KEY && domains.length > 0) {
+    const urlscanResult = await checkUrlscan(domains);
+    results.push(urlscanResult);
+    if (urlscanResult.status === "MALICIOUS") {
+      const matchedUrls = urlscanResult.matchedUrls?.join(", ") ?? "unknown";
+      maliciousReasons.push(
+        `${urlscanResult.provider}: ${urlscanResult.details ?? "Threat detected"} (${matchedUrls})`
+      );
+    }
+  }
 
   return {
     isMalicious: maliciousReasons.length > 0,
@@ -281,4 +322,3 @@ export async function runThreatIntelligenceChecks(
     maliciousReasons,
   };
 }
-

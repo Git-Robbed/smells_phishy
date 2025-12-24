@@ -14,9 +14,12 @@ export const env = createEnv({
     // Threat Intelligence APIs
     GOOGLE_SAFE_BROWSING_API_KEY: z.string().min(1),
     PHISHTANK_API_KEY: z.string().optional(), // Optional - has unauthenticated access
-    URLSCAN_API_KEY: z.string().min(1),
+    URLSCAN_API_KEY: z.string().optional(), // Optional - limited free tier
     // Gemini AI
     GEMINI_API_KEY: z.string().min(1),
+    // Rate Limiting (Upstash - optional, falls back to in-memory)
+    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   },
 
   /**
@@ -39,6 +42,8 @@ export const env = createEnv({
     PHISHTANK_API_KEY: process.env.PHISHTANK_API_KEY,
     URLSCAN_API_KEY: process.env.URLSCAN_API_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

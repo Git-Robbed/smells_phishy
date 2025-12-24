@@ -1,6 +1,8 @@
 /**
  * Gemini AI integration for phishing detection
  * Layer 2 of the detection system - contextual analysis of email content
+ * 
+ * FREE TIER: 15 requests/minute, 1,500 requests/day
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -11,6 +13,82 @@ export interface GeminiAnalysisResult {
   verdict: "SAFE" | "SUSPICIOUS" | "DANGER";
   reasons: string[];
   summary: string;
+  quotaExceeded?: boolean;
+}
+
+// Daily quota tracking (resets on server restart)
+// In production, use Redis or a database for persistence
+let dailyCallCount = 0;
+let lastResetDate = new Date().toDateString();
+
+const DAILY_LIMIT = 1400; // Leave 100 buffer from 1,500 limit
+const MINUTE_LIMIT = 14; // Leave 1 buffer from 15/min limit
+
+// Track per-minute calls
+const minuteCallTimestamps: number[] = [];
+
+/**
+ * Check and update quota limits
+ * Returns true if we can make a request
+ */
+function checkAndUpdateQuota(): { allowed: boolean; reason?: string } {
+  const now = Date.now();
+  const today = new Date().toDateString();
+
+  // Reset daily counter if new day
+  if (today !== lastResetDate) {
+    dailyCallCount = 0;
+    lastResetDate = today;
+  }
+
+  // Check daily limit
+  if (dailyCallCount >= DAILY_LIMIT) {
+    return { 
+      allowed: false, 
+      reason: "Daily AI analysis limit reached. Try again tomorrow." 
+    };
+  }
+
+  // Clean up old minute timestamps (keep only last 60 seconds)
+  const oneMinuteAgo = now - 60000;
+  while (minuteCallTimestamps.length > 0 && minuteCallTimestamps[0]! < oneMinuteAgo) {
+    minuteCallTimestamps.shift();
+  }
+
+  // Check per-minute limit
+  if (minuteCallTimestamps.length >= MINUTE_LIMIT) {
+    return { 
+      allowed: false, 
+      reason: "Rate limit reached. Please wait a moment and try again." 
+    };
+  }
+
+  // Update counters
+  dailyCallCount++;
+  minuteCallTimestamps.push(now);
+
+  return { allowed: true };
+}
+
+/**
+ * Get current quota status
+ */
+export function getQuotaStatus(): { 
+  dailyRemaining: number; 
+  minuteRemaining: number;
+  dailyLimit: number;
+} {
+  const now = Date.now();
+  const oneMinuteAgo = now - 60000;
+  
+  // Count calls in last minute
+  const recentCalls = minuteCallTimestamps.filter(t => t >= oneMinuteAgo).length;
+
+  return {
+    dailyRemaining: Math.max(0, DAILY_LIMIT - dailyCallCount),
+    minuteRemaining: Math.max(0, MINUTE_LIMIT - recentCalls),
+    dailyLimit: DAILY_LIMIT,
+  };
 }
 
 const PHISHING_DETECTION_PROMPT = `You are a cybersecurity expert specializing in phishing detection. Analyze the following email content for signs of phishing or social engineering attacks.
@@ -53,6 +131,18 @@ Only output valid JSON, nothing else.`;
 export async function analyzeWithGemini(
   emailContent: string
 ): Promise<GeminiAnalysisResult> {
+  // Check quota before making request
+  const quotaCheck = checkAndUpdateQuota();
+  if (!quotaCheck.allowed) {
+    return {
+      score: 50,
+      verdict: "SUSPICIOUS",
+      reasons: [quotaCheck.reason ?? "AI analysis temporarily unavailable"],
+      summary: "Quota limit reached - using conservative assessment",
+      quotaExceeded: true,
+    };
+  }
+
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
   
   // Use Gemini Flash for speed
@@ -123,4 +213,3 @@ Analyze this email and provide your assessment in JSON format:`;
     };
   }
 }
-
